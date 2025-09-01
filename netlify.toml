@@ -1,5 +1,3 @@
-{
-  "name": "stayworld-nowpayments-integrated",
-  "version": "1.0.0",
-  "private": true
-}
+[build]
+  publish = "."
+  functions = "netlify/functions"
