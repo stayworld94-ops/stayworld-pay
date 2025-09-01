@@ -110,6 +110,7 @@
 
     async function init(){
       if(provider==='nowpayments' && invoiceId){
+        // 결과 모드
         $('modeBadge').innerText = 'Confirmation';
         $('checkoutSec').style.display = 'none';
         $('confirmSec').style.display = 'block';
@@ -125,6 +126,7 @@
         return;
       }
 
+      // 체크아웃 모드
       $('modeBadge').innerText = 'Checkout';
       const id = uid();
       $('bookingId').innerText = id;
@@ -154,10 +156,10 @@
           if(data && data.invoice_url){
             location.href = data.invoice_url;
           }else{
-            alert('NOWPayments 오류: ' + (data && (data.error && (data.error.message || data.error.error_description)) || 'Unknown'));
+            alert('NOWPayments 오류: ' + JSON.stringify(data && (data.error || data)));
           }
         }catch(e){
-          alert('네트워크 오류');
+          alert('네트워크 오류: ' + e);
           console.error(e);
         }
       };
