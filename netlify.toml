@@ -1,6 +1,3 @@
 [build]
-  # 리포 루트를 퍼블리시 (public 폴더 요구 X)
   publish = "."
-  # Functions 경로
   functions = "netlify/functions"
-
