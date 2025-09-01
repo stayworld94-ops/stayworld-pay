@@ -1,11 +1,14 @@
-import fetch from 'node-fetch';
+// fetch는 Node 18 이상에서 내장되어 있으므로 node-fetch 불필요
 
 export async function handler(event) {
   try {
     const body = JSON.parse(event.body || '{}');
     const apiKey = process.env.NOWPAYMENTS_API_KEY;
     if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'NOWPAYMENTS_API_KEY missing' }) };
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ ok: false, error: 'NOWPAYMENTS_API_KEY missing' })
+      };
     }
 
     const site = process.env.SITE_BASE_URL || '';
@@ -34,11 +37,20 @@ export async function handler(event) {
 
     const data = await resp.json();
     if (data && data.invoice_url) {
-      return { statusCode: 200, body: JSON.stringify({ ok: true, invoice_url: data.invoice_url, invoice_id: data.id }) };
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ ok: true, invoice_url: data.invoice_url, invoice_id: data.id })
+      };
     } else {
-      return { statusCode: 400, body: JSON.stringify({ ok: false, error: data }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ ok: false, error: data })
+      };
     }
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: String(e) }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ ok: false, error: String(e) })
+    };
   }
 }
