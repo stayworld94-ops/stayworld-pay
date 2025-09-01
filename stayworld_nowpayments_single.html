@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>STAYWORLD — 결제(통합)</title>
+  <style>
+    :root { --bg:#0b0d14; --fg:#e9e9ee; --muted:#9aa1b2; --card:#141a26; --acc:#f1c40f; }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans KR','Noto Sans',sans-serif}
+    .container{max-width:1080px;margin:0 auto;padding:24px}
+    .card{background:var(--card);border:1px solid #232a3a;border-radius:18px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .title{font-weight:900;font-size:22px;letter-spacing:.2px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn{padding:12px 16px;border-radius:12px;border:none;background:var(--acc);color:#000;font-weight:900;cursor:pointer}
+    .btn:hover{transform:translateY(-1px)}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#202738;color:#a6e3a1;font-weight:800;font-size:12px}
+    .input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3246;background:#0f1422;color:#e9e9ee}
+    hr{border:none;border-top:1px solid #2a3246;margin:16px 0}
+    footer{opacity:.75;margin-top:24px;font-size:12px}
+    .muted{color:var(--muted)}
+    pre{white-space:pre-wrap;word-break:break-word;background:#0f1422;border:1px solid #2a3246;border-radius:12px;padding:12px;overflow:auto}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title">STAYWORLD — 결제(통합)</div>
+      <div id="modeBadge" class="badge">Checkout</div>
+    </div>
+
+    <!-- Checkout Section -->
+    <div id="checkoutSec" class="card">
+      <div style="font-weight:800;margin-bottom:8px">예약 요약</div>
+      <div class="row">
+        <div>
+          <label class="muted">숙소명</label>
+          <input id="listingName" class="input" value="Istanbul Golden Horn View"/>
+        </div>
+        <div>
+          <label class="muted">총 결제금액</label>
+          <input id="totalPrice" class="input" type="number" step="0.01" min="0" value="264.00"/>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="muted">통화</label>
+          <select id="currency" class="input">
+            <option>USD</option><option>EUR</option><option>TRY</option><option>KRW</option>
+          </select>
+        </div>
+        <div>
+          <label class="muted">인원</label>
+          <input id="guests" class="input" type="number" min="1" value="2"/>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="muted">체크인</label>
+          <input id="cin" class="input" type="date"/>
+        </div>
+        <div>
+          <label class="muted">체크아웃</label>
+          <input id="cout" class="input" type="date"/>
+        </div>
+      </div>
+      <hr/>
+      <div class="row">
+        <div>
+          <div class="muted">예약코드</div>
+          <div id="bookingId" class="badge"></div>
+        </div>
+        <div style="text-align:right">
+          <button id="payBtn" class="btn">NOWPayments (카드/코인) 결제하기</button>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:8px">버튼 클릭 시 NOWPayments 호스티드 결제 페이지(카드/코인)로 이동합니다.</p>
+    </div>
+
+    <!-- Confirmation Section -->
+    <div id="confirmSec" class="card" style="display:none">
+      <div style="font-weight:800;margin-bottom:8px">결제 결과</div>
+      <div class="row">
+        <div>
+          <div class="muted">상태</div>
+          <div id="status" class="badge">확인 중...</div>
+        </div>
+        <div style="text-align:right">
+          <a href="stayworld_nowpayments_single.html" class="btn">새 예약하기</a>
+        </div>
+      </div>
+      <hr/>
+      <pre id="detail"></pre>
+    </div>
+
+    <footer>NOWPayments 통합 — Single HTML | Netlify Functions 필요</footer>
+  </div>
+
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    function uid(){ return 'BK-' + Math.random().toString(36).slice(2,8).toUpperCase(); }
+    function nights(a,b){ try{ return Math.max(1, Math.ceil((new Date(b)-new Date(a))/(1000*60*60*24))); }catch(e){ return 1; } }
+
+    const url = new URL(location.href);
+    const provider = url.searchParams.get('provider');
+    const invoiceId = url.searchParams.get('invoice_id');
+    const bookingIdQS = url.searchParams.get('bookingId');
+
+    async function init(){
+      if(provider==='nowpayments' && invoiceId){
+        $('modeBadge').innerText = 'Confirmation';
+        $('checkoutSec').style.display = 'none';
+        $('confirmSec').style.display = 'block';
+        try{
+          const res = await fetch('/.netlify/functions/verifyNowInvoice?' + new URLSearchParams({ invoice_id: invoiceId, bookingId: bookingIdQS }));
+          const data = await res.json();
+          $('status').innerText = data.ok ? '결제 완료' : (data.pending ? '결제 대기' : '결제 실패');
+          $('detail').innerText = JSON.stringify(data, null, 2);
+        }catch(e){
+          $('status').innerText = '확인 오류';
+          $('detail').innerText = String(e);
+        }
+        return;
+      }
+
+      $('modeBadge').innerText = 'Checkout';
+      const id = uid();
+      $('bookingId').innerText = id;
+
+      $('payBtn').onclick = async ()=>{
+        const name = $('listingName').value || 'StayWorld Booking';
+        const price = Number(($('totalPrice').value||'0').trim());
+        const currency = $('currency').value || 'USD';
+        const g = $('guests').value || '';
+        const cin = $('cin').value || '';
+        const cout = $('cout').value || '';
+        const n = cin && cout ? nights(cin, cout) : '';
+        const desc = [name, n?`${n}박`:null, g?`${g}인`:null].filter(Boolean).join(' — ');
+
+        try{
+          const res = await fetch('/.netlify/functions/createNowInvoice', {
+            method:'POST',
+            headers:{'content-type':'application/json'},
+            body: JSON.stringify({
+              bookingId: id,
+              price_amount: Number(price.toFixed(2)),
+              price_currency: currency,
+              order_description: desc
+            })
+          });
+          const data = await res.json();
+          if(data && data.invoice_url){
+            location.href = data.invoice_url;
+          }else{
+            alert('NOWPayments 오류: ' + (data && (data.error && (data.error.message || data.error.error_description)) || 'Unknown'));
+          }
+        }catch(e){
+          alert('네트워크 오류');
+          console.error(e);
+        }
+      };
+    }
+    init();
+  </script>
+</body>
+</html>
