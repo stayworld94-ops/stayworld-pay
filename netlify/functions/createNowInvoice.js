@@ -1,56 +1,49 @@
-// fetch는 Node 18 이상에서 내장되어 있으므로 node-fetch 불필요
+const fetch = require("node-fetch");
+const { db } = require("./_firebaseAdmin");
 
-export async function handler(event) {
+const NOW_BASE = "https://api.nowpayments.io/v1";
+
+exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200 };
+  if (event.httpMethod !== "POST") return { statusCode: 405 };
+
   try {
-    const body = JSON.parse(event.body || '{}');
-    const apiKey = process.env.NOWPAYMENTS_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ ok: false, error: 'NOWPAYMENTS_API_KEY missing' })
-      };
-    }
+    const { bookingId, payCurrency } = JSON.parse(event.body || "{}");
+    if (!bookingId) return { statusCode: 400, body: "Missing bookingId" };
 
-    const site = process.env.SITE_BASE_URL || '';
-    const pay_currency = process.env.NOWPAYMENTS_PAY_CURRENCY || undefined;
+    const snap = await db.collection("bookings").doc(bookingId).get();
+    if (!snap.exists) return { statusCode: 404, body: "Booking not found" };
+    const b = snap.data();
 
     const payload = {
-      price_amount: Number(body.price_amount || 0),
-      price_currency: body.price_currency || 'USD',
-      order_id: body.bookingId || 'BK',
-      order_description: body.order_description || 'StayWorld Booking',
-      success_url: `${site}/stayworld_nowpayments_single.html?provider=nowpayments&bookingId=${encodeURIComponent(body.bookingId || '')}`,
-      cancel_url: `${site}/stayworld_nowpayments_single.html?provider=nowpayments&bookingId=${encodeURIComponent(body.bookingId || '')}`
+      price_amount: b.totalPrice,
+      price_currency: (b.currency || "USD").toUpperCase(),
+      pay_currency: payCurrency || undefined,
+      order_id: bookingId,
+      order_description: `StayWorld Booking — ${b.listingId}`,
+      success_url: `${process.env.PUBLIC_BASE_URL}/checkout.html?status=success&bid=${bookingId}`,
+      cancel_url: `${process.env.PUBLIC_BASE_URL}/checkout.html?status=cancel&bid=${bookingId}`,
     };
-    if (pay_currency) {
-      payload.pay_currency = pay_currency;
-    }
 
-    const resp = await fetch('https://api.nowpayments.io/v1/invoice', {
-      method: 'POST',
+    const res = await fetch(`${NOW_BASE}/payment`, {
+      method: "POST",
       headers: {
-        'x-api-key': apiKey,
-        'content-type': 'application/json'
+        "Content-Type": "application/json",
+        "x-api-key": process.env.NOWPAYMENTS_API_KEY,
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    const data = await resp.json();
-    if (data && data.invoice_url) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ ok: true, invoice_url: data.invoice_url, invoice_id: data.id })
-      };
-    } else {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ ok: false, error: data })
-      };
+    const json = await res.json();
+    if (!json || !json.invoice_url) {
+      console.error("NOWPayments create error", json);
+      return { statusCode: 502, body: "NOWPayments error" };
     }
+
+    await snap.ref.update({ gateway: "nowpayments", nowInvoiceId: json.payment_id });
+    return { statusCode: 200, body: JSON.stringify({ url: json.invoice_url }) };
   } catch (e) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ ok: false, error: String(e) })
-    };
+    console.error(e);
+    return { statusCode: 500, body: "Server Error" };
   }
-}
+};
