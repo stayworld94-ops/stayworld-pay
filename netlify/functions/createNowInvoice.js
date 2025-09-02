@@ -1,4 +1,3 @@
-const fetch = require("node-fetch");
 const { db } = require("./_firebaseAdmin");
 
 const NOW_BASE = "https://api.nowpayments.io/v1";
@@ -18,7 +17,7 @@ exports.handler = async (event) => {
     const payload = {
       price_amount: b.totalPrice,
       price_currency: (b.currency || "USD").toUpperCase(),
-      pay_currency: payCurrency || undefined,
+      pay_currency: payCurrency || undefined, // BTC/ETH/USDT 등
       order_id: bookingId,
       order_description: `StayWorld Booking — ${b.listingId}`,
       success_url: `${process.env.PUBLIC_BASE_URL}/checkout.html?status=success&bid=${bookingId}`,
