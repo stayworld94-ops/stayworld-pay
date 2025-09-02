@@ -2,6 +2,11 @@
   publish = "public"
   functions = "netlify/functions"
 
+# ✅ 함수 런타임을 Node 18로 고정 (firebase-admin 설치/번들 위해 필요)
+[build.environment]
+  NODE_VERSION = "18"
+
+# ✅ Netlify가 함수 번들할 때 esbuild 사용
 [functions]
   node_bundler = "esbuild"
 
