@@ -1,3 +1,13 @@
 [build]
-  publish = "."
+  publish = "public"
   functions = "netlify/functions"
+
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type,Authorization,Paypal-Transmission-Id,Paypal-Transmission-Sig,Paypal-Auth-Algo,Paypal-Cert-Url,Paypal-Transmission-Time"
+    Access-Control-Allow-Methods = "GET,POST,OPTIONS"
