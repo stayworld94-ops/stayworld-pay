@@ -5,10 +5,11 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405 };
 
   try {
+    // ⚠️ 프로덕션에서는 NOWPayments HMAC 검증 로직 추가 권장
     const body = JSON.parse(event.body || "{}");
     const { payment_status, order_id, payment_id } = body;
 
-    const done = ["finished","confirmed"].includes((payment_status || "").toLowerCase());
+    const done = ["finished", "confirmed"].includes((payment_status || "").toLowerCase());
     if (!done) return { statusCode: 200, body: "ignored" };
 
     const bookingId = order_id;
@@ -18,7 +19,7 @@ exports.handler = async (event) => {
       const snap = await tx.get(ref);
       if (!snap.exists) return;
       const data = snap.data();
-      if (data.status === "confirmed" || data.status === "paid") return;
+      if (data.status === "confirmed" || data.status === "paid") return; // 멱등 처리
 
       tx.update(ref, {
         status: "confirmed",
@@ -26,7 +27,10 @@ exports.handler = async (event) => {
         gateway: "nowpayments",
         paymentRef: payment_id,
       });
-      tx.update(db.collection("holds").doc(bookingId), { active: false, releasedAt: admin.firestore.FieldValue.serverTimestamp() });
+      tx.update(db.collection("holds").doc(bookingId), {
+        active: false,
+        releasedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
     });
 
     return { statusCode: 200, body: "ok" };
