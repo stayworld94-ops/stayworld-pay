@@ -13,6 +13,7 @@ exports.handler = async (event) => {
 
     const expiresAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 15 * 60 * 1000));
 
+    // 겹치는 홀드/확정 예약 있으면 차단
     const holdsSnap = await db.collection("holds")
       .where("listingId", "==", listingId)
       .where("checkIn", "==", checkIn)
@@ -24,7 +25,7 @@ exports.handler = async (event) => {
       .where("listingId", "==", listingId)
       .where("checkIn", "==", checkIn)
       .where("checkOut", "==", checkOut)
-      .where("status", "in", ["paid","confirmed"])
+      .where("status", "in", ["paid", "confirmed"])
       .get();
 
     if (!holdsSnap.empty || !overlappingConfirmed.empty) {
